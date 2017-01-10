@@ -69,7 +69,7 @@ getGithubCredentials(function(){
 function getGithubToken(callback) {
   var prefs = new Preferences('ginit');
 
-  if (prefs.github &amp & prefs.github.token) {
+  if (prefs.github && prefs.github.token) {
     return callback(null, prefs.github.token);
   }
 
