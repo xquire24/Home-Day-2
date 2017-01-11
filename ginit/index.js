@@ -12,11 +12,7 @@ var _           = require('lodash');
 var git         = require('simple-git')();
 var touch       = require('touch');
 var fs          = require('fs');
-var files = require('./lib/files');
-var github = new GitHubApi({
-  version: '3.0.0'
-});
- var prefs = new Preferences('ginit');
+var files       = require('./lib/files');
 
 clear();
 console.log(
@@ -29,6 +25,10 @@ if (files.directoryExists('.git')) {
   console.log(chalk.red('Already a git repository!'));
   process.exit();
 }
+
+var github = new GitHubApi({
+  version: '3.0.0'
+});
 
 function getGithubCredentials(callback) {
   var questions = [
@@ -61,11 +61,6 @@ function getGithubCredentials(callback) {
   inquirer.prompt(questions).then(callback);
 }
 
-
-
-getGithubCredentials(function(){
-  console.log(arguments);
-});
 function getGithubToken(callback) {
   var prefs = new Preferences('ginit');
 
@@ -73,41 +68,37 @@ function getGithubToken(callback) {
     return callback(null, prefs.github.token);
   }
 
-  // Fetch token
   getGithubCredentials(function(credentials) {
-    
+    var status = new Spinner('Authenticating you, please wait...');
+    status.start();
+
+    github.authenticate(
+      _.extend(
+        {
+          type: 'basic',
+        },
+        credentials
+      )
+    );
+
+    github.authorization.create({
+      scopes: ['user', 'public_repo', 'repo', 'repo:status'],
+      note: 'ginit, the command-line tool for initalizing Git repos'
+    }, function(err, res) {
+      status.stop();
+      if ( err ) {
+        return callback( err );
+      }
+      if (res.token) {
+        prefs.github = {
+          token : res.token
+        };
+        return callback(null, res.token);
+      }
+      return callback();
+    });
   });
 }
-getGithubCredentials(function(credentials) {
-  var status = new Spinner('Authenticating you, please wait...');
-  status.start();
-
-  github.authenticate(
-    _.extend(
-      {
-        type: 'basic',
-      },
-      credentials
-    )
-  );
-
-  github.authorization.create({
-    scopes: ['user', 'public_repo', 'repo', 'repo:status'],
-    note: 'ginit, the command-line tool for initalizing Git repos'
-  }, function(err, res) {
-    status.stop();
-    if ( err ) {
-      return callback( err );
-    }
-    if (res.token) {
-      prefs.github = {
-        token : res.token
-      };
-      return callback(null, res.token);
-    }
-    return callback();
-  });
-});
 
 function createRepo(callback) {
   var argv = require('minimist')(process.argv.slice(2));
@@ -193,8 +184,7 @@ function createGitignore(callback) {
   }
 }
 
-
-function setupRepo( url, callback ) {
+function setupRepo(url, callback) {
   var status = new Spinner('Setting up the repository...');
   status.start();
 
